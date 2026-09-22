@@ -479,10 +479,15 @@ app.include_router(ai_analyzer.router)
 app.include_router(chat.router)
 app.include_router(backup.router)
 
-# Folder untuk upload foto profil
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "profiles")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")), name="uploads")
+# Folder untuk upload foto profil (Gunakan /tmp di serverless/Vercel agar tidak read-only crash)
+is_serverless = os.environ.get("VERCEL") is not None or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+base_upload = "/tmp/uploads" if is_serverless else os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+UPLOAD_DIR = os.path.join(base_upload, "profiles")
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=base_upload), name="uploads")
+except Exception as ue:
+    print(f"[WARN] Uploads directory setup: {ue}")
 
 # ==========================================================
 # AUTHENTICATION ENDPOINTS

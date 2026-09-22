@@ -15,8 +15,6 @@ try:
 except Exception:
     pass
 
-from fastapi.responses import JSONResponse
-
 try:
     from erp_api.main import app
 
@@ -38,25 +36,11 @@ try:
             db_status = f"error: {str(dbe)}"
         return {"status": "ok", "database": db_status}
 
-    class CatchAllMiddleware:
-        def __init__(self, app):
-            self.app = app
-
-        async def __call__(self, scope, receive, send):
-            try:
-                await self.app(scope, receive, send)
-            except Exception as e:
-                err_text = traceback.format_exc()
-                res = JSONResponse(
-                    status_code=500,
-                    content={"asgi_error": str(e), "traceback": err_text}
-                )
-                await res(scope, receive, send)
-
-    handler = CatchAllMiddleware(app)
+    handler = app
 except Exception as e:
     err_tb = traceback.format_exc()
     from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
     error_app = FastAPI()
     
     @error_app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
@@ -66,9 +50,8 @@ except Exception as e:
             content={
                 "error": "Vercel API Import Error",
                 "message": str(e),
-                "traceback": err_tb,
-                "sys_path": sys.path,
-                "current_dir": os.getcwd()
+                "traceback": err_tb
             }
         )
+    app = error_app
     handler = error_app
