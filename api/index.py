@@ -1,7 +1,19 @@
 import sys
 import os
 
-# Add root directory to sys.path so modules like database, models can be imported
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(CURRENT_DIR)
+ERP_API_DIR = os.path.join(BASE_DIR, "erp_api")
 
-from main import app
+if ERP_API_DIR not in sys.path:
+    sys.path.insert(0, ERP_API_DIR)
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
+
+try:
+    os.chdir(ERP_API_DIR)
+except Exception:
+    pass
+
+from erp_api.main import app
+handler = app

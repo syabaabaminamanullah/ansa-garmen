@@ -1,0 +1,333 @@
+"""
+models.py - FastAPI Backend
+PENTING: File ini adalah SALINAN IDENTIK dari models.py Streamlit.
+Tidak ada perubahan pada nama kolom, tabel, atau relasi.
+"""
+import enum
+import datetime
+import os
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Enum as SQLEnum
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
+
+# Konfigurasi Database
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+
+if SQLALCHEMY_DATABASE_URL:
+    # Fix for Heroku/Railway/Neon which might provide "postgres://" instead of "postgresql://"
+    if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DB_PATH = os.path.join(BASE_DIR, "garmen.db")
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+# Buat Engine
+try:
+    # connect_args={"check_same_thread": False} hanya untuk SQLite
+    connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+except Exception as e:
+    print(f"Database Connection Error: {e}")
+    # Fallback Terakhir ke Memory SQLite
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+# Dependency untuk FastAPI
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+class KategoriBarang(enum.Enum):
+    BAHAN_BAKU = "Bahan Baku (Kain)"
+    BAHAN_PEMBANTU = "Bahan Pembantu (Benang, Kancing, dll)"
+    BAHAN_PENOLONG = "Bahan Penolong (Label, Plastik, dll)"
+    BARANG_JADI = "Barang Jadi (Baju)"
+
+
+class Divisi(enum.Enum):
+    CUTTING = "Cutting"
+    JAHIT = "Jahit / Makloon"
+    FINISHING = "Finishing & QC"
+    ADMIN = "Administrasi Umum"
+    KEPALA = "Kepala Garmen / Produksi"
+
+
+class TipeGaji(enum.Enum):
+    BORONGAN = "Borongan (Per Pcs)"
+    MINGGUAN = "Mingguan (Tetap)"
+    BULANAN = "Bulanan (Tetap)"
+
+
+class KategoriMitra(enum.Enum):
+    CUSTOMER = "Customer / Klien"
+    SUPPLIER = "Supplier Bahan Baku"
+
+
+# ==========================================
+# 1. TABEL MASTER DATA & PERSEDIAAN
+# ==========================================
+class Barang(Base):
+    __tablename__ = "barang"
+    id = Column(Integer, primary_key=True, index=True)
+    model_code = Column(String, index=True)
+    nama_barang = Column(String)
+    kode_sku = Column(String, unique=True, index=True)
+    kategori = Column(String)
+    satuan = Column(String)
+    stok_saat_ini = Column(Float, default=0.0)
+    harga_jual = Column(Float, default=0.0)
+    harga_modal = Column(Float, default=0.0)
+    is_active = Column(Integer, default=1)
+
+
+class Mitra(Base):
+    __tablename__ = "mitra"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_mitra = Column(String, index=True)
+    kategori = Column(String)
+    no_hp = Column(String, default="-")
+    email = Column(String, default="-")
+    alamat = Column(String, default="-")
+    saldo_piutang = Column(Float, default=0.0)
+    saldo_utang = Column(Float, default=0.0)
+    is_active = Column(Integer, default=1)
+
+
+class Karyawan(Base):
+    __tablename__ = "karyawan"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_karyawan = Column(String, index=True)
+    no_hp = Column(String, default="-")
+    alamat = Column(String, default="-")
+    divisi = Column(String)
+    tipe_gaji = Column(String)
+    nominal_gaji = Column(Float, default=0.0)
+    target_produksi_mingguan = Column(Integer, default=0)
+    saldo_kasbon = Column(Float, default=0.0)
+    is_active = Column(Integer, default=1) # 1=Aktif, 0=Dihapus/Keluar
+
+
+# ==========================================
+# 2. TABEL PENJUALAN & RETUR (INVOICE)
+# ==========================================
+class HeaderPenjualan(Base):
+    __tablename__ = "header_penjualan"
+    id = Column(Integer, primary_key=True, index=True)
+    no_invoice = Column(String, unique=True, index=True)
+    tanggal = Column(DateTime, default=datetime.datetime.utcnow)
+    nama_customer = Column(String)
+    metode_bayar = Column(String)
+    tipe_transaksi = Column(String, default="NORMAL")
+    diskon = Column(Float, default=0.0)
+    pajak = Column(Float, default=0.0)
+    uang_muka = Column(Float, default=0.0)  # DP yang dibayar saat penerbitan invoice
+    total_tagihan = Column(Float, default=0.0)  # Total setelah diskon (sebelum DP)
+    status = Column(String, default="Lunas")  # "Lunas" | "Tempo"
+    sisa_tagihan = Column(Float, default=0.0)  # Sisa yang belum dibayar (untuk FIFO matching)
+
+
+class DetailPenjualan(Base):
+    __tablename__ = "detail_penjualan"
+    id = Column(Integer, primary_key=True, index=True)
+    no_invoice = Column(String, index=True)
+    kode_sku = Column(String)
+    nama_barang = Column(String)
+    qty_lusin = Column(Float)
+    harga_per_lusin = Column(Float)
+    subtotal = Column(Float)
+    qty_retur = Column(Float, default=0.0)
+
+
+# ==========================================
+# 3. TABEL PEMBELIAN & RETUR (PO)
+# ==========================================
+class HeaderPembelian(Base):
+    __tablename__ = "header_pembelian"
+    id = Column(Integer, primary_key=True, index=True)
+    no_po = Column(String, unique=True, index=True)
+    tanggal = Column(DateTime, default=datetime.datetime.utcnow)
+    nama_supplier = Column(String)
+    metode_bayar = Column(String)
+    tipe_transaksi = Column(String, default="NORMAL")
+    diskon = Column(Float, default=0.0)
+    pajak = Column(Float, default=0.0)
+    uang_muka = Column(Float, default=0.0)
+    total_tagihan = Column(Float, default=0.0)
+    status = Column(String, default="Lunas") # "Lunas" | "Tempo"
+
+
+
+class DetailPembelian(Base):
+    __tablename__ = "detail_pembelian"
+    id = Column(Integer, primary_key=True, index=True)
+    no_po = Column(String, index=True)
+    kode_sku = Column(String)
+    nama_barang = Column(String)
+    qty_kg = Column(Float)
+    harga_per_kg = Column(Float)
+    subtotal = Column(Float)
+
+
+class ProductionLog(Base):
+    __tablename__ = "production_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    tanggal = Column(DateTime, default=datetime.datetime.utcnow)
+    divisi = Column(String)  # "Cutting", "Jahit", etc.
+    kode_sku = Column(String)
+    nama_barang = Column(String)
+    qty_hasil = Column(Integer)  # Pcs hasil cutting atau Lusin hasil jahit
+    kain_id = Column(Integer, nullable=True)
+    qty_pakai = Column(Float, nullable=True)
+    karyawan_id = Column(Integer, nullable=True)
+    ongkos_per_pcs = Column(Float, default=0.0)
+    total_ongkos = Column(Float, default=0.0)
+    keterangan = Column(String, nullable=True)
+
+
+class WipSaldoAwal(Base):
+    """Tabel khusus untuk mencatat Saldo Awal WIP saat setup/cut-off sistem.
+    Entri di sini TIDAK memotong stok bahan baku maupun kas/bank.
+    Jurnal: Debit Persediaan WIP (12130), Kredit Ekuitas Saldo Awal Setup (31120).
+    """
+    __tablename__ = "wip_saldo_awal"
+    id = Column(Integer, primary_key=True, index=True)
+    tanggal_input = Column(DateTime, default=datetime.datetime.utcnow)
+    tanggal_cutoff = Column(DateTime)           # Tanggal efektif cut-off
+    kode_sku = Column(String, index=True)
+    nama_barang = Column(String)
+    qty_pcs = Column(Integer)                   # Jumlah pcs dalam proses
+    tahap_saat_ini = Column(String)             # "Siap Jahit", "Siap Finishing", dll.
+    modal_bahan_baku = Column(Float, default=0.0)   # Biaya bahan baku yang sudah terserap (Rp)
+    modal_upah_cutting = Column(Float, default=0.0) # Upah cutting yang sudah dibayar (Rp)
+    modal_lain = Column(Float, default=0.0)         # Biaya lain-lain yang sudah terserap (Rp)
+    total_modal_terserap = Column(Float, default=0.0)  # Total sunk cost
+    keterangan = Column(String, nullable=True)
+    dibuat_oleh = Column(String, nullable=True)     # Username yang menginput
+
+
+# ==========================================
+# 4. TABEL BUKU BESAR KEUANGAN
+# ==========================================
+class JurnalUmum(Base):
+    __tablename__ = "jurnal_umum"
+    id = Column(Integer, primary_key=True, index=True)
+    tanggal = Column(DateTime, default=datetime.datetime.utcnow)
+    kode_akun = Column(String, index=True)
+    nama_akun = Column(String)
+    keterangan = Column(String)
+    debit = Column(Float, default=0.0)
+    kredit = Column(Float, default=0.0)
+
+
+# ==========================================
+# 5. CHART OF ACCOUNTS
+# ==========================================
+class AkunBukuBesar(Base):
+    __tablename__ = "akun_buku_besar"
+    kode_akun = Column(String, primary_key=True, index=True)
+    nama_akun = Column(String, nullable=False)
+    kategori = Column(String, nullable=False)
+
+
+# ==========================================
+# 6. AUTHENTICATION & USERS
+# ==========================================
+class UserRole(enum.Enum):
+    SUPER_ADMIN = "super_admin"
+    ADMIN = "admin"
+    USER = "user"
+    BOS = "bos"
+    CUTTING = "cutting"
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    password_hash = Column(String)
+    password_plain = Column(String, nullable=True) # Untuk oversight Super Admin
+    nama_lengkap = Column(String)
+    role = Column(String) # super_admin, admin, user, bos, cutting
+    foto_url = Column(String, nullable=True)
+    foto_base64 = Column(String, nullable=True) # Data gambar disimpan langsung di SQL
+    email = Column(String, nullable=True)
+    no_hp = Column(String, nullable=True)
+    is_active = Column(Integer, default=1)
+
+class UserLog(Base):
+    __tablename__ = "user_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, index=True)
+    nama_lengkap = Column(String)
+    aksi = Column(String)       # Contoh: "Melihat Halaman", "Menambahkan Data", "Menghapus Data"
+    menu = Column(String)       # Contoh: "Master Data", "Kas & Piutang", "Penjualan"
+    waktu = Column(DateTime, default=datetime.datetime.utcnow)
+
+class CompanyConfig(Base):
+    __tablename__ = "company_config"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_perusahaan = Column(String, default="RAZIQ GARMENT")
+    alamat = Column(String, default="Bandung - Jawa Barat")
+    no_telp = Column(String, default="0812-1491-4641")
+    email = Column(String, default="raziqgarment@gmail.com")
+    website = Column(String, default="www.raziqgarment.com")
+    nama_pemilik = Column(String, default="Yana Taryana")
+    jabatan_pemilik = Column(String, default="Direktur Operasional")
+    logo_url = Column(String, nullable=True)
+    logo_base64 = Column(String, nullable=True) # Logo disimpan langsung di SQL
+    nama_bank = Column(String, default="BCA")
+    no_rekening = Column(String, default="123-456-7890")
+    atas_nama_bank = Column(String, default="RAZIQ GARMENT")
+    target_cutting_mingguan = Column(Integer, default=1000)
+    ttd_url = Column(String, nullable=True)
+    ttd_base64 = Column(String, nullable=True) # TTD Pimpinan disimpan di SQL
+    
+    # Konfigurasi Tanda Tangan Dinamis (No-Code)
+    ttd_invoice_nama = Column(String, default="Yana Taryana")
+    ttd_invoice_jabatan = Column(String, default="Owner")
+    ttd_po_nama = Column(String, default="Yana Taryana")
+    ttd_po_jabatan = Column(String, default="General Manager")
+    ttd_laporan_nama = Column(String, default="Yana Taryana")
+    ttd_laporan_jabatan = Column(String, default="Direktur Operasional")
+    
+    # Tanda Tangan Admin (Pembuat Laporan)
+    ttd_admin_nama = Column(String, default="Admin Keuangan")
+    ttd_admin_jabatan = Column(String, default="Administrasi")
+
+
+# ==========================================
+# 8. INTERNAL CHAT SYSTEM
+# ==========================================
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, index=True) # ID dari tabel User
+    receiver_id = Column(Integer, index=True)
+    message = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
+    is_read = Column(Integer, default=0) # 0=Unread, 1=Read (sqlite doesn't have native bool always)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+# ==========================================
+# 7. DYNAMIC MENU REGISTRY
+# ==========================================
+class MenuRegistry(Base):
+    __tablename__ = "menu_registry"
+    id = Column(Integer, primary_key=True, index=True)
+    id_menu = Column(String, unique=True, index=True) # ID unik menu, contoh: "dashboard"
+    nama_menu = Column(String)                      # Nama yang tampil di sidebar
+    path = Column(String)                           # URL routing
+    icon = Column(String)                           # Ikon Material Symbols
+    is_active = Column(Integer, default=1)          # 1=Aktif, 0=Nonaktif
+    roles = Column(String)                          # Role yang diizinkan (comma separated)
+    order_priority = Column(Integer, default=0)     # Urutan tampilan di sidebar
+    is_divider = Column(Integer, default=0)         # Apakah ini divider (0=Bukan, 1=Ya)
+

@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base Reset ─────────────────────────────────────────── */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #F8FAFC; /* Light Mode Background */
+    color: #1E293B; /* Slate 800 */
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar tipis elegan */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+}
+
+/* ── Utility Classes ────────────────────────────────────── */
+@layer components {
+  .font-outfit { font-family: 'Outfit', sans-serif; }
+
+  /* Card Klasik (Original) */
+  .card {
+    @apply bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8;
+    transition: all 0.3s ease;
+  }
+  .card:hover {
+    @apply shadow-md border-slate-200;
+  }
+
+  /* Badge status transaksi */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black tracking-[0.15em] uppercase;
+  }
+  .badge-success { @apply badge bg-emerald-50 text-emerald-700 border border-emerald-100; }
+  .badge-warning { @apply badge bg-amber-50 text-amber-700 border border-amber-100; }
+  .badge-info    { @apply badge bg-blue-50 text-blue-700 border border-blue-100; }
+  .badge-danger  { @apply badge bg-red-50 text-red-700 border border-red-100; }
+
+  .btn-primary {
+    @apply bg-slate-900 hover:bg-black text-white font-black px-6 py-3 
+           rounded-2xl transition-all duration-300 hover:shadow-xl active:scale-95;
+  }
+
+  .fin-value {
+    @apply text-2xl font-black text-slate-900 leading-tight tracking-tighter font-outfit;
+  }
+  .fin-label {
+    @apply text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em];
+  }
+}
+
+/* ── Animasi ─────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.live-dot {
+  animation: pulse-dot 2.5s ease-in-out infinite;
+}
+
+/* AI Floating Window Animations */
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-in {
+  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.5);
+}
