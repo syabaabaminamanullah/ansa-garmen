@@ -16,15 +16,14 @@ except Exception:
     pass
 
 try:
-    import main as erp_main
-    app = erp_main.app
+    from erp_api.main import app
 
     @app.get("/api/health")
     def health_check():
         db_status = "unknown"
         try:
             from sqlalchemy import text
-            from models import SessionLocal
+            from erp_api.models import SessionLocal
             db = SessionLocal()
             db.execute(text("SELECT 1"))
             db.close()
@@ -32,26 +31,6 @@ try:
         except Exception as dbe:
             db_status = f"error: {str(dbe)}"
         return {"status": "ok", "database": db_status}
-
-    @app.get("/api/diag")
-    def diag():
-        try:
-            from sqlalchemy import inspect
-            from models import engine, SessionLocal, User
-            inspector = inspect(engine)
-            tables = inspector.get_table_names()
-            db = SessionLocal()
-            u_count = db.query(User).count()
-            users = [{"username": u.username, "role": u.role} for u in db.query(User).all()]
-            db.close()
-            return {
-                "tables_count": len(tables),
-                "tables": tables,
-                "user_count": u_count,
-                "users": users
-            }
-        except Exception as e:
-            return {"error": str(e), "traceback": traceback.format_exc()}
 
     handler = app
 except Exception as e:

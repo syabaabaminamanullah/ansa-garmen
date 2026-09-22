@@ -46,16 +46,17 @@ def get_password_hash(password):
 from fastapi import Request, BackgroundTasks
 import jwt
 
-# Jalankan Sinkronisasi DB Startup
-from db_sync_admin import sync_db
-try:
-    print("--- STARTING PRODUCTION SYNC: WIP & SCHEMA ---")
-    sync_db()
-    print("--- PRODUCTION SYNC COMPLETED ---")
-    # Cleanup old chat messages (> 7 days) on startup
-    chat.cleanup_old_messages(SessionLocal())
-except Exception as e:
-    print(f"Startup DB Sync Warning: {e}")
+# Jalankan Sinkronisasi DB hanya jika RUN_DB_SYNC=true (mencegah timeout di Serverless/Vercel)
+if os.environ.get("RUN_DB_SYNC") == "true":
+    from db_sync_admin import sync_db
+    try:
+        print("--- STARTING PRODUCTION SYNC: WIP & SCHEMA ---")
+        sync_db()
+        print("--- PRODUCTION SYNC COMPLETED ---")
+        # Cleanup old chat messages (> 7 days) on startup
+        chat.cleanup_old_messages(SessionLocal())
+    except Exception as e:
+        print(f"Startup DB Sync Warning: {e}")
 
 app = FastAPI()
 
