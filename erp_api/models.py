@@ -22,16 +22,20 @@ else:
     DB_PATH = os.path.join(BASE_DIR, "garmen.db")
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
+from sqlalchemy.pool import NullPool
+
 # Buat Engine
 try:
-    # connect_args={"check_same_thread": False} hanya untuk SQLite
-    connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        connect_args=connect_args,
-        pool_pre_ping=True,
-        pool_recycle=300
-    )
+    if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+        connect_args = {"check_same_thread": False}
+        engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
+    else:
+        connect_args = {"connect_timeout": 10}
+        engine = create_engine(
+            SQLALCHEMY_DATABASE_URL,
+            connect_args=connect_args,
+            poolclass=NullPool
+        )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 except Exception as e:
     print(f"Database Connection Error: {e}")
