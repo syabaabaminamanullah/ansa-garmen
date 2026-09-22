@@ -42,6 +42,15 @@ async def app(scope, receive, send):
     if scope['type'] != 'http':
         return
 
+    # Restore original client path from x-matched-path header if present
+    headers_dict = dict(scope.get('headers', []))
+    matched_path = headers_dict.get(b'x-matched-path')
+    if matched_path:
+        decoded_matched = matched_path.decode('latin1')
+        if decoded_matched and not decoded_matched.endswith('.py'):
+            scope['path'] = decoded_matched
+            scope['raw_path'] = matched_path
+
     path = scope.get('path', '')
 
     if path == '/api/debug-info':
