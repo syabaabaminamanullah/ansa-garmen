@@ -1,19 +1,24 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-#koneksi ke file database SQLite
-SQLALCHEMY_DATABASE_URL = "sqlite:///./garmen.db"
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+else:
+    # Fallback to local SQLite
+    DATABASE_URL = "sqlite:///./garmen.db"
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
 
-# Pembuat sesi (SessionLocal) yang akan dipanggil oleh menu-menu
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Mendefinisikan Base (Fondasi untuk laci-laci database)
 Base = declarative_base()
 
-import models
-Base.metadata.create_all(bind=engine)
+def init_db():
+    import models
+    Base.metadata.create_all(bind=engine)
