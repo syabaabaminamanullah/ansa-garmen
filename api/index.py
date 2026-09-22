@@ -45,11 +45,10 @@ async def app(scope, receive, send):
     path = scope.get('path', '')
 
     if path == '/api/debug-info':
+        headers = {k.decode('latin1'): v.decode('latin1') for k, v in scope.get('headers', [])}
         body = json.dumps({
             "scope_path": path,
-            "sys_path": sys.path,
-            "cwd": os.getcwd(),
-            "env_keys": [k for k in os.environ.keys() if any(x in k for x in ["DATABASE", "POSTGRES", "VERCEL"])]
+            "headers": headers
         }).encode('utf-8')
         await send({
             'type': 'http.response.start',
