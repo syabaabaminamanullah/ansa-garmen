@@ -38,7 +38,7 @@ def health_check():
 
 @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def catch_all(path_name: str, request: Request):
-    if path_name in ["", "api", "api/"]:
+    if path_name in ["", "api", "api/", "api/index.py", "index.py"]:
         return root()
     return {
         "status": "online",
