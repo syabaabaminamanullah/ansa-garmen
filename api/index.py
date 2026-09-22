@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import traceback
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -10,48 +11,83 @@ if ERP_API_DIR not in sys.path:
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-try:
-    os.chdir(ERP_API_DIR)
-except Exception:
-    pass
+_real_app = None
+_init_error = None
 
-try:
-    from erp_api.main import app
+def get_real_app():
+    global _real_app, _init_error
+    if _real_app is not None:
+        return _real_app, None
+    if _init_error is not None:
+        return None, _init_error
+    try:
+        os.chdir(ERP_API_DIR)
+        from erp_api.main import app as fastapi_app
+        _real_app = fastapi_app
+        return _real_app, None
+    except Exception as e:
+        _init_error = traceback.format_exc()
+        return None, _init_error
 
-    @app.get("/api/ping")
-    def ping():
-        return {"pong": True}
+async def app(scope, receive, send):
+    if scope['type'] == 'lifespan':
+        while True:
+            message = await receive()
+            if message['type'] == 'lifespan.startup':
+                await send({'type': 'lifespan.startup.complete'})
+            elif message['type'] == 'lifespan.shutdown':
+                await send({'type': 'lifespan.shutdown.complete'})
+                return
 
-    @app.get("/api/health")
-    def health_check():
-        db_status = "unknown"
-        try:
-            from sqlalchemy import text
-            from erp_api.models import SessionLocal
-            db = SessionLocal()
-            db.execute(text("SELECT 1"))
-            db.close()
-            db_status = "connected"
-        except Exception as dbe:
-            db_status = f"error: {str(dbe)}"
-        return {"status": "ok", "database": db_status}
+    if scope['type'] != 'http':
+        return
 
-    handler = app
-except Exception as e:
-    err_tb = traceback.format_exc()
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-    error_app = FastAPI()
-    
-    @error_app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
-    async def error_handler(full_path: str = ""):
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Vercel API Import Error",
-                "message": str(e),
-                "traceback": err_tb
-            }
-        )
-    app = error_app
-    handler = error_app
+    path = scope.get('path', '')
+
+    if path == '/api/debug-info':
+        body = json.dumps({
+            "scope_path": path,
+            "sys_path": sys.path,
+            "cwd": os.getcwd(),
+            "env_keys": [k for k in os.environ.keys() if any(x in k for x in ["DATABASE", "POSTGRES", "VERCEL"])]
+        }).encode('utf-8')
+        await send({
+            'type': 'http.response.start',
+            'status': 200,
+            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(body)).encode('utf-8')]]
+        })
+        await send({'type': 'http.response.body', 'body': body})
+        return
+
+    real_app, err = get_real_app()
+    if err:
+        body = json.dumps({
+            "error": "Real App Import Error",
+            "traceback": err,
+            "path": path
+        }).encode('utf-8')
+        await send({
+            'type': 'http.response.start',
+            'status': 500,
+            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(body)).encode('utf-8')]]
+        })
+        await send({'type': 'http.response.body', 'body': body})
+        return
+
+    try:
+        await real_app(scope, receive, send)
+    except Exception as exc:
+        err_body = json.dumps({
+            "error": "FastAPI Execution Exception",
+            "exception": str(exc),
+            "traceback": traceback.format_exc(),
+            "path": path
+        }).encode('utf-8')
+        await send({
+            'type': 'http.response.start',
+            'status': 500,
+            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(err_body)).encode('utf-8')]]
+        })
+        await send({'type': 'http.response.body', 'body': err_body})
+
+handler = app
