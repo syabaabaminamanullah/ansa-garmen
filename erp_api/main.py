@@ -501,27 +501,30 @@ def create_access_token(data: dict):
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == request.username).first()
-    if not user or not verify_password(request.password, user.password_hash):
-        return schemas.TokenResponse(access_token="", user={"error": "Username atau password salah!"})
-    
-    if user.is_active == 0:
-        return schemas.TokenResponse(access_token="", user={"error": "Akun Anda telah dinonaktifkan. Silakan hubungi admin."})
-    
-    access_token = create_access_token(data={"sub": user.username, "role": user.role})
-    return schemas.TokenResponse(
-        access_token=access_token,
-        user={
-            "id": user.id,
-            "username": user.username,
-            "nama_lengkap": user.nama_lengkap,
-            "role": user.role,
-            "foto_url": user.foto_url,
-            "foto_base64": user.foto_base64,
-            "email": user.email,
-            "no_hp": user.no_hp
-        }
-    )
+    try:
+        user = db.query(models.User).filter(models.User.username == request.username).first()
+        if not user or not verify_password(request.password, user.password_hash):
+            return schemas.TokenResponse(access_token="", user={"error": "Username atau password salah!"})
+        
+        if user.is_active == 0:
+            return schemas.TokenResponse(access_token="", user={"error": "Akun Anda telah dinonaktifkan. Silakan hubungi admin."})
+        
+        access_token = create_access_token(data={"sub": user.username, "role": user.role})
+        return schemas.TokenResponse(
+            access_token=access_token,
+            user={
+                "id": user.id,
+                "username": user.username,
+                "nama_lengkap": user.nama_lengkap,
+                "role": user.role,
+                "foto_url": user.foto_url,
+                "foto_base64": user.foto_base64,
+                "email": user.email,
+                "no_hp": user.no_hp
+            }
+        )
+    except Exception as e:
+        return schemas.TokenResponse(access_token="", user={"error": f"Server login error: {str(e)}"})
 
 @app.put("/api/auth/profile")
 def update_my_profile(data: dict, db: Session = Depends(get_db)):
