@@ -247,9 +247,10 @@ async def startup_event():
         # JANGAN PERNAH JALANKAN DI PRODUCTION (WEB/POSTGRES)
         is_production = os.environ.get("DATABASE_URL") is not None
         is_sqlite = str(models.engine.url).startswith("sqlite")
+        user_count = db.query(models.User).count()
         
-        if is_sqlite and not is_production:
-            print("--- Local Environment Detected: Checking default users ---")
+        if (is_sqlite and not is_production) or user_count == 0:
+            print(f"--- Environment Check: {user_count} users found. Checking default users ---")
             default_users = [
                 {"username": "superadmin", "password": "admin123", "nama": "Syabaab (Super Admin)", "role": "super_admin"},
                 {"username": "owner", "password": "admin123", "nama": "Owner / Pemilik", "role": "owner"},
