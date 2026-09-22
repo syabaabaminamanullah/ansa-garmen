@@ -53,11 +53,12 @@ async def app(scope, receive, send):
 
     path = scope.get('path', '')
 
-    if path == '/api/debug-info':
-        headers = {k.decode('latin1'): v.decode('latin1') for k, v in scope.get('headers', [])}
+    if scope.get('query_string') == b'debug=1':
+        headers_all = {k.decode('latin1'): v.decode('latin1') for k, v in scope.get('headers', [])}
         body = json.dumps({
-            "scope_path": path,
-            "headers": headers
+            "scope_path": scope.get('path'),
+            "scope_method": scope.get('method'),
+            "headers": headers_all
         }).encode('utf-8')
         await send({
             'type': 'http.response.start',
