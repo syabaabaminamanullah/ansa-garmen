@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+sqlalchemy
+fpdf
+pandas
+openpyxl
+xlsxwriter
+python-multipart
+jinja2
+python-dotenv
+passlib
+bcrypt==4.0.1
+PyJWT
+requests
+psycopg2-binary
+google-generativeai
+websockets
