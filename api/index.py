@@ -15,8 +15,14 @@ try:
 except Exception:
     pass
 
+from fastapi.responses import JSONResponse
+
 try:
     from erp_api.main import app
+
+    @app.get("/api/ping")
+    def ping():
+        return {"pong": True}
 
     @app.get("/api/health")
     def health_check():
@@ -32,11 +38,25 @@ try:
             db_status = f"error: {str(dbe)}"
         return {"status": "ok", "database": db_status}
 
-    handler = app
+    class CatchAllMiddleware:
+        def __init__(self, app):
+            self.app = app
+
+        async def __call__(self, scope, receive, send):
+            try:
+                await self.app(scope, receive, send)
+            except Exception as e:
+                err_text = traceback.format_exc()
+                res = JSONResponse(
+                    status_code=500,
+                    content={"asgi_error": str(e), "traceback": err_text}
+                )
+                await res(scope, receive, send)
+
+    handler = CatchAllMiddleware(app)
 except Exception as e:
     err_tb = traceback.format_exc()
     from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
     error_app = FastAPI()
     
     @error_app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
@@ -52,4 +72,3 @@ except Exception as e:
             }
         )
     handler = error_app
-    app = error_app
