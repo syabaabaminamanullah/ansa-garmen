@@ -24,7 +24,7 @@ def root():
         "status": "online",
         "app": "ANSA ERP - Raziq Garment",
         "version": "1.0.0",
-        "database_connected": bool(os.environ.get("DATABASE_URL")),
+        "database_connected": bool(os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or os.environ.get("STORAGE_URL")),
         "docs": "/docs"
     }
 
