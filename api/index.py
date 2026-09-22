@@ -68,6 +68,19 @@ async def app(scope, receive, send):
         return
 
     real_app, err = get_real_app()
+
+    if path == '/api/routes':
+        routes = []
+        if real_app:
+            routes = [{"path": getattr(r, 'path', str(r)), "methods": list(getattr(r, 'methods', []))} for r in getattr(real_app, 'routes', [])]
+        body = json.dumps({"current_scope_path": path, "err": err, "routes": routes}).encode('utf-8')
+        await send({
+            'type': 'http.response.start',
+            'status': 200,
+            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(body)).encode('utf-8')]]
+        })
+        await send({'type': 'http.response.body', 'body': body})
+        return
     if err:
         body = json.dumps({
             "error": "Real App Import Error",
