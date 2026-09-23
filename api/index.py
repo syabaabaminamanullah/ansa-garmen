@@ -1,8 +1,5 @@
 import sys
 import os
-import json
-import traceback
-from urllib.parse import parse_qs, urlencode
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ERP_API_DIR = os.path.join(BASE_DIR, 'erp_api')
@@ -12,106 +9,11 @@ if ERP_API_DIR not in sys.path:
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-_real_app = None
-_init_error = None
+try:
+    os.chdir(ERP_API_DIR)
+except Exception:
+    pass
 
-def get_real_app():
-    global _real_app, _init_error
-    if _real_app is not None:
-        return _real_app, None
-    if _init_error is not None:
-        return None, _init_error
-    try:
-        os.chdir(ERP_API_DIR)
-        from erp_api.main import app as fastapi_app
-        _real_app = fastapi_app
-        return _real_app, None
-    except Exception as e:
-        _init_error = traceback.format_exc()
-        return None, _init_error
-
-def adjust_scope_path(scope):
-    query_bytes = scope.get('query_string', b'')
-    if query_bytes:
-        query_str = query_bytes.decode('latin1', 'ignore')
-        params = parse_qs(query_str, keep_blank_values=True)
-        if '__path__' in params:
-            captured_path = params.pop('__path__')[0].strip('/')
-            scope['path'] = f"/api/{captured_path}" if captured_path else "/api"
-            scope['raw_path'] = scope['path'].encode('latin1')
-            new_query = urlencode(params, doseq=True)
-            scope['query_string'] = new_query.encode('latin1')
-            return
-
-    # Fallback to x-matched-path header if present
-    headers_dict = dict(scope.get('headers', []))
-    matched = headers_dict.get(b'x-matched-path')
-    if matched:
-        decoded = matched.decode('latin1', 'ignore').split('?')[0].strip('/')
-        if decoded and not decoded.endswith('.py'):
-            scope['path'] = f"/{decoded}" if not decoded.startswith('/') else decoded
-            scope['raw_path'] = scope['path'].encode('latin1')
-
-async def app(scope, receive, send):
-    if scope['type'] == 'lifespan':
-        while True:
-            message = await receive()
-            if message['type'] == 'lifespan.startup':
-                await send({'type': 'lifespan.startup.complete'})
-            elif message['type'] == 'lifespan.shutdown':
-                await send({'type': 'lifespan.shutdown.complete'})
-                return
-
-    if scope['type'] != 'http':
-        return
-
-    adjust_scope_path(scope)
-    path = scope.get('path', '')
-
-    if scope.get('query_string') == b'debug=1':
-        headers_all = {k.decode('latin1'): v.decode('latin1') for k, v in scope.get('headers', [])}
-        body = json.dumps({
-            "scope_path": scope.get('path'),
-            "scope_method": scope.get('method'),
-            "headers": headers_all
-        }).encode('utf-8')
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(body)).encode('utf-8')]]
-        })
-        await send({'type': 'http.response.body', 'body': body})
-        return
-
-    real_app, err = get_real_app()
-    if err:
-        body = json.dumps({
-            "error": "Real App Import Error",
-            "traceback": err,
-            "path": path
-        }).encode('utf-8')
-        await send({
-            'type': 'http.response.start',
-            'status': 500,
-            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(body)).encode('utf-8')]]
-        })
-        await send({'type': 'http.response.body', 'body': body})
-        return
-
-    try:
-        await real_app(scope, receive, send)
-    except Exception as exc:
-        err_body = json.dumps({
-            "error": "FastAPI Execution Exception",
-            "exception": str(exc),
-            "traceback": traceback.format_exc(),
-            "path": path
-        }).encode('utf-8')
-        await send({
-            'type': 'http.response.start',
-            'status': 500,
-            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(err_body)).encode('utf-8')]]
-        })
-        await send({'type': 'http.response.body', 'body': err_body})
+from erp_api.main import app
 
 handler = app

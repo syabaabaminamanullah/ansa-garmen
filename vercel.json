@@ -1,7 +1,7 @@
 {
   "regions": ["sin1"],
   "rewrites": [
-    { "source": "/api/:match*", "destination": "/api/index.py?__path__=:match*" },
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
