@@ -87,6 +87,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc):
+    headers_dict = {k.decode('latin1'): v.decode('latin1') for k, v in request.scope.get('headers', [])}
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": "Not Found",
+            "received_scope_path": request.scope.get("path"),
+            "received_scope_method": request.scope.get("method"),
+            "x_matched_path": headers_dict.get("x-matched-path"),
+            "url": str(request.url)
+        }
+    )
+
 # TIMEZONE CONFIG (WIB)
 from datetime import timezone, timedelta
 WIB = timezone(timedelta(hours=7))
