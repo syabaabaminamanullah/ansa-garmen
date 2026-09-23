@@ -23,14 +23,23 @@ class VercelPathMiddleware:
     async def __call__(self, scope, receive, send):
         if scope['type'] in ('http', 'websocket'):
             headers = dict(scope.get('headers', []))
-            # Vercel passes the original requested path in x-matched-path
-            matched = headers.get(b'x-matched-path') or headers.get(b'x-forwarded-uri')
+            matched = headers.get(b'x-matched-path') or headers.get(b'x-forwarded-uri') or headers.get(b'x-original-uri')
+            path = scope.get('path', '')
+
+            raw = None
             if matched:
                 decoded = matched.decode('latin1', 'ignore').split('?')[0].strip('/')
                 if decoded and not decoded.endswith('.py'):
-                    target_path = f"/{decoded}" if not decoded.startswith('/') else decoded
-                    scope['path'] = target_path
-                    scope['raw_path'] = target_path.encode('latin1')
+                    raw = decoded
+
+            if not raw and path and not path.endswith('.py'):
+                raw = path.strip('/')
+
+            if raw:
+                target_path = f"/{raw}" if raw.startswith('api') else f"/api/{raw}"
+                scope['path'] = target_path
+                scope['raw_path'] = target_path.encode('latin1')
+
         await self.app(scope, receive, send)
 
 app = VercelPathMiddleware(fastapi_app)
