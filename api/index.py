@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import traceback
+from urllib.parse import parse_qs, urlencode
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ERP_API_DIR = os.path.join(BASE_DIR, 'erp_api')
@@ -29,6 +30,28 @@ def get_real_app():
         _init_error = traceback.format_exc()
         return None, _init_error
 
+def adjust_scope_path(scope):
+    query_bytes = scope.get('query_string', b'')
+    if query_bytes:
+        query_str = query_bytes.decode('latin1', 'ignore')
+        params = parse_qs(query_str, keep_blank_values=True)
+        if '__path__' in params:
+            captured_path = params.pop('__path__')[0].strip('/')
+            scope['path'] = f"/api/{captured_path}" if captured_path else "/api"
+            scope['raw_path'] = scope['path'].encode('latin1')
+            new_query = urlencode(params, doseq=True)
+            scope['query_string'] = new_query.encode('latin1')
+            return
+
+    # Fallback to x-matched-path header if present
+    headers_dict = dict(scope.get('headers', []))
+    matched = headers_dict.get(b'x-matched-path')
+    if matched:
+        decoded = matched.decode('latin1', 'ignore').split('?')[0].strip('/')
+        if decoded and not decoded.endswith('.py'):
+            scope['path'] = f"/{decoded}" if not decoded.startswith('/') else decoded
+            scope['raw_path'] = scope['path'].encode('latin1')
+
 async def app(scope, receive, send):
     if scope['type'] == 'lifespan':
         while True:
@@ -42,15 +65,7 @@ async def app(scope, receive, send):
     if scope['type'] != 'http':
         return
 
-    # Restore original client path from x-matched-path header if present
-    headers_dict = dict(scope.get('headers', []))
-    matched_path = headers_dict.get(b'x-matched-path')
-    if matched_path:
-        decoded_matched = matched_path.decode('latin1')
-        if decoded_matched and not decoded_matched.endswith('.py'):
-            scope['path'] = decoded_matched
-            scope['raw_path'] = matched_path
-
+    adjust_scope_path(scope)
     path = scope.get('path', '')
 
     if scope.get('query_string') == b'debug=1':
@@ -69,19 +84,6 @@ async def app(scope, receive, send):
         return
 
     real_app, err = get_real_app()
-
-    if path == '/api/routes':
-        routes = []
-        if real_app:
-            routes = [{"path": getattr(r, 'path', str(r)), "methods": list(getattr(r, 'methods', []))} for r in getattr(real_app, 'routes', [])]
-        body = json.dumps({"current_scope_path": path, "err": err, "routes": routes}).encode('utf-8')
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [[b'content-type', b'application/json'], [b'content-length', str(len(body)).encode('utf-8')]]
-        })
-        await send({'type': 'http.response.body', 'body': body})
-        return
     if err:
         body = json.dumps({
             "error": "Real App Import Error",
