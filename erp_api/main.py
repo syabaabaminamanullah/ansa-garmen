@@ -540,6 +540,10 @@ def init_db():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/routes")
+def list_routes():
+    return [{"path": getattr(r, 'path', str(r)), "methods": list(getattr(r, 'methods', []))} for r in app.routes]
+
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
     try:
