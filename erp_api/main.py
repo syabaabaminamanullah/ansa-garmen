@@ -503,7 +503,42 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# Seed users removed (moved to startup_event)
+@app.get("/api/init-db")
+def init_db():
+    try:
+        import traceback
+        models.Base.metadata.create_all(bind=models.engine)
+        db = SessionLocal()
+        default_users = [
+            {"username": "superadmin", "password": "admin123", "nama": "Syabaab (Super Admin)", "role": "super_admin"},
+            {"username": "owner", "password": "admin123", "nama": "Owner / Pemilik", "role": "owner"},
+            {"username": "gm", "password": "admin123", "nama": "Kepala Operasional", "role": "gm"},
+            {"username": "admin", "password": "admin123", "nama": "Administrator", "role": "admin"},
+            {"username": "staff", "password": "user123", "nama": "Staff Operasional", "role": "staff"}
+        ]
+        created = 0
+        for u in default_users:
+            cek = db.query(models.User).filter(models.User.username == u["username"]).first()
+            if not cek:
+                new_u = models.User(
+                    username=u["username"],
+                    password_hash=get_password_hash(u["password"]),
+                    password_plain=u["password"],
+                    nama_lengkap=u["nama"],
+                    role=u["role"]
+                )
+                db.add(new_u)
+                created += 1
+        db.commit()
+        config = db.query(models.CompanyConfig).first()
+        if not config:
+            config = models.CompanyConfig()
+            db.add(config)
+            db.commit()
+        db.close()
+        return {"status": "ok", "tables_created": True, "users_seeded": created}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
