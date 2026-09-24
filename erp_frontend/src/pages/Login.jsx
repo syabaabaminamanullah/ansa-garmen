@@ -118,6 +118,18 @@ export default function Login() {
           </div>
         )}
 
+        {/* ── Superadmin Quick Access ── */}
+        <div className="mb-6 flex justify-center">
+          <button 
+            type="button" 
+            onClick={() => { setUsername('superadmin'); setPassword('admin123'); }}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full hover:bg-emerald-500/20 hover:scale-105 transition-all text-xs font-bold text-emerald-400 group cursor-pointer"
+          >
+            <span className="material-symbols-rounded text-base text-amber-400">admin_panel_settings</span>
+            Auto-fill Super Admin
+          </button>
+        </div>
+
         <form onSubmit={handleLogin} className="space-y-8">
           <div className="group">
             <label className="block text-[10px] font-black text-emerald-500/60 uppercase tracking-[0.25em] pl-4 mb-3 group-focus-within:text-emerald-400 transition-colors">Credential User</label>
