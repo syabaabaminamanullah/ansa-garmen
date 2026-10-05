@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
 
 # Konfigurasi Database
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")`nif SQLALCHEMY_DATABASE_URL:`n    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("?channel_binding=require&", "?").replace("&channel_binding=require", "").replace("?channel_binding=require", "")
 
 if SQLALCHEMY_DATABASE_URL:
     if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
@@ -340,6 +340,7 @@ class MenuRegistry(Base):
     roles = Column(String)                          # Role yang diizinkan (comma separated)
     order_priority = Column(Integer, default=0)     # Urutan tampilan di sidebar
     is_divider = Column(Integer, default=0)         # Apakah ini divider (0=Bukan, 1=Ya)
+
 
 
 
