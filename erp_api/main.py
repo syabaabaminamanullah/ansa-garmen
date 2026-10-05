@@ -1797,3 +1797,28 @@ elif not os.environ.get("VERCEL"):
     @app.get("/")
     def read_root():
         return {"message": "ERP Backend is Running. Frontend build (dist) not found."}
+@app.get("/api/debug-db")
+async def debug_db():
+    import os
+    import sys
+    import traceback
+    
+    db_url = os.environ.get("DATABASE_URL", "")
+    pg_url = os.environ.get("POSTGRES_URL", "")
+    
+    error_msg = ""
+    try:
+        from sqlalchemy import create_engine
+        url = db_url or pg_url
+        if url and url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        engine = create_engine(url)
+    except Exception as e:
+        error_msg = str(e) + "\n" + traceback.format_exc()
+        
+    return {
+        "DATABASE_URL_exists": bool(db_url),
+        "POSTGRES_URL_exists": bool(pg_url),
+        "python_version": sys.version,
+        "error": error_msg
+    }
