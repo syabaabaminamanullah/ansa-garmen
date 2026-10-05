@@ -147,6 +147,7 @@ export default function Sidebar({ isOpen, onOpenProfile }) {
 
           return (
             <NavLink
+              id={'tour-menu-' + (item.path === '/' ? 'dashboard' : item.path.replace('/', ''))}
               key={item.id_menu}
               to={item.path}
               end={item.path === '/'}
@@ -188,3 +189,4 @@ export default function Sidebar({ isOpen, onOpenProfile }) {
     </aside>
   )
 }
+

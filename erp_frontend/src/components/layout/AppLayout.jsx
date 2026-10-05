@@ -5,6 +5,7 @@ import Topbar from './Topbar'
 import ChatSystem from '../chat/ChatSystem'
 import AIAssistantHub from '../dashboard/AIAssistantHub'
 import SubscriptionModal from './SubscriptionModal'
+import AppTour from '../AppTour'
 import { getCurrentUser, logout } from '../../api/authApi'
 import api from '../../api/api'
 
@@ -136,6 +137,8 @@ export default function AppLayout() {
         </div>
       )}
 
+      <AppTour />
+
       <SubscriptionModal
         isOpen={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
@@ -227,3 +230,4 @@ export default function AppLayout() {
     </div>
   )
 }
+

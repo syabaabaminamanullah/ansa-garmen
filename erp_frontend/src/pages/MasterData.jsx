@@ -743,7 +743,7 @@ export default function MasterData() {
                   </label>
                 </div>
 
-                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center bg-slate-50/50 hover:bg-slate-50 transition-all relative group">
+                <div className="flex gap-2"><a href="/Template_Import_Baju.xlsx" download className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors"><span className="material-symbols-rounded text-lg">download</span><span className="text-[10px] font-bold uppercase tracking-wider">Format Baju</span></a><a href="/Template_Import_Bahan.xlsx" download className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors"><span className="material-symbols-rounded text-lg">download</span><span className="text-[10px] font-bold uppercase tracking-wider">Format Bahan</span></a></div><div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center bg-slate-50/50 hover:bg-slate-50 transition-all relative group">
                   <span className="material-symbols-rounded text-5xl text-slate-300 group-hover:text-emerald-500 transition-colors mb-3">cloud_upload</span>
                   <div className="font-bold text-slate-600">Klik atau seret file Excel ke sini</div>
                   <div className="text-[10px] text-slate-400 mt-1 font-medium tracking-wide">FORMAT: .XLSX ONLY</div>
@@ -1155,3 +1155,4 @@ export default function MasterData() {
     </div>
   );
 }
+
