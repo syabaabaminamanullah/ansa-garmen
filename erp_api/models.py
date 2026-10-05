@@ -14,9 +14,10 @@ from sqlalchemy.ext.declarative import declarative_base
 SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
 
 if SQLALCHEMY_DATABASE_URL:
-    # Fix for Heroku/Railway/Neon which might provide "postgres://" instead of "postgresql://"
-    if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
-        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+    elif SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "garmen.db")
@@ -339,4 +340,6 @@ class MenuRegistry(Base):
     roles = Column(String)                          # Role yang diizinkan (comma separated)
     order_priority = Column(Integer, default=0)     # Urutan tampilan di sidebar
     is_divider = Column(Integer, default=0)         # Apakah ini divider (0=Bukan, 1=Ya)
+
+
 
