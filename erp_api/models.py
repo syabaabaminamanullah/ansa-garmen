@@ -19,6 +19,10 @@ if SQLALCHEMY_DATABASE_URL:
     # Fix for Heroku/Railway/Neon which might provide "postgres://" instead of "postgresql://"
     if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    # Kunci driver ke psycopg2 secara eksplisit. SQLAlchemy versi baru memakai
+    # psycopg (v3) sebagai default untuk "postgresql://", yang tidak terpasang.
+    if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "garmen.db")
