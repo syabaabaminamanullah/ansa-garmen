@@ -13,4 +13,3 @@ passlib[bcrypt]
 PyJWT
 requests
 google-generativeai
-pg8000

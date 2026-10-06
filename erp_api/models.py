@@ -16,16 +16,17 @@ if SQLALCHEMY_DATABASE_URL:
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("?channel_binding=require&", "?").replace("&channel_binding=require", "").replace("?channel_binding=require", "")
 
 if SQLALCHEMY_DATABASE_URL:
-    if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
-        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
-    elif SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
-        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+    # Fix for Heroku/Railway/Neon which might provide "postgres://" instead of "postgresql://"
+    if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "garmen.db")
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 from sqlalchemy.pool import NullPool
+
+DB_INIT_ERROR = None  # Diisi jika koneksi ke database utama gagal (untuk diagnosa)
 
 # Buat Engine
 try:
@@ -41,7 +42,8 @@ try:
         )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 except Exception as e:
-    print(f"Database Connection Error: {e}")
+    DB_INIT_ERROR = f"{type(e).__name__}: {e}"
+    print(f"Database Connection Error: {DB_INIT_ERROR}")
     # Fallback Terakhir ke Memory SQLite
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

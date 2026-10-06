@@ -1799,26 +1799,21 @@ elif not os.environ.get("VERCEL"):
         return {"message": "ERP Backend is Running. Frontend build (dist) not found."}
 @app.get("/api/debug-db")
 async def debug_db():
-    import os
     import sys
-    import traceback
-    
-    db_url = os.environ.get("DATABASE_URL", "")
-    pg_url = os.environ.get("POSTGRES_URL", "")
-    
-    error_msg = ""
-    try:
-        from sqlalchemy import create_engine
-        url = db_url or pg_url
-        if url and url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        engine = create_engine(url)
-    except Exception as e:
-        error_msg = str(e) + "\n" + traceback.format_exc()
-        
-    return {
-        "DATABASE_URL_exists": bool(db_url),
-        "POSTGRES_URL_exists": bool(pg_url),
+    from sqlalchemy import text
+    result = {
+        "DATABASE_URL_exists": bool(os.environ.get("DATABASE_URL")),
+        "POSTGRES_URL_exists": bool(os.environ.get("POSTGRES_URL")),
         "python_version": sys.version,
-        "error": error_msg
+        "engine_dialect": models.engine.dialect.name,
+        "engine_driver": models.engine.dialect.driver,
+        "init_error": getattr(models, "DB_INIT_ERROR", None),
+        "users_count": None,
+        "query_error": None,
     }
+    try:
+        with models.engine.connect() as conn:
+            result["users_count"] = conn.execute(text("SELECT COUNT(*) FROM users")).scalar()
+    except Exception as e:
+        result["query_error"] = f"{type(e).__name__}: {str(e)[:300]}"
+    return result
