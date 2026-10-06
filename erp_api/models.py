@@ -11,7 +11,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
 
 # Konfigurasi Database
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")`nif SQLALCHEMY_DATABASE_URL:`n    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("?channel_binding=require&", "?").replace("&channel_binding=require", "").replace("?channel_binding=require", "")
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+if SQLALCHEMY_DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("?channel_binding=require&", "?").replace("&channel_binding=require", "").replace("?channel_binding=require", "")
 
 if SQLALCHEMY_DATABASE_URL:
     if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
